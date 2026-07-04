@@ -1,0 +1,569 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  TRAINER
+  SUPPORT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHTLY_ACTIVE
+  MODERATELY_ACTIVE
+  VERY_ACTIVE
+  EXTRA_ACTIVE
+}
+
+enum FitnessGoal {
+  LOSE_WEIGHT
+  BUILD_MUSCLE
+  STAY_FIT
+  IMPROVE_ENDURANCE
+  GENERAL_HEALTH
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  BANK_TRANSFER
+  CASH
+  OTHER
+}
+
+enum NotificationType {
+  WORKOUT
+  MEMBERSHIP
+  SYSTEM
+  PROMOTION
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+// ─── Auth & Users ────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  role         Role       @default(USER)
+  status       UserStatus @default(ACTIVE)
+  isVerified   Boolean    @default(false) @map("is_verified")
+  rememberMe   Boolean    @default(false) @map("remember_me")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  profile                 Profile?
+  settings                Settings?
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  workoutHistory          WorkoutHistory[]
+  favoriteWorkouts        FavoriteWorkout[]
+  userMemberships         UserMembership[]
+  payments                Payment[]
+  notifications           Notification[]
+  contactMessages         ContactMessage[]
+  progressTracking        ProgressTracking[]
+  bmiHistory              BMIHistory[]
+  loginHistory            LoginHistory[]
+  auditLogs               AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ─── Admin & RBAC ────────────────────────────────────────────────────────────
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  name        String
+  description String?
+  module      String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  role         Role
+  permissionId String @map("permission_id") @db.Uuid
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@map("role_permissions")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metadata  Json?
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model LoginHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  email      String?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  device     String?
+  success    Boolean  @default(true)
+  failReason String?  @map("fail_reason")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([email])
+  @@index([createdAt])
+  @@map("login_history")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  category  String   @default("general")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("system_settings")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model Profile {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @unique @map("user_id") @db.Uuid
+  avatarUrl     String?        @map("avatar_url")
+  phone         String?
+  gender        Gender?
+  age           Int?
+  weight        Float?
+  height        Float?
+  fitnessGoal   FitnessGoal?   @map("fitness_goal")
+  activityLevel ActivityLevel? @map("activity_level")
+  bio           String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Settings {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @unique @map("user_id") @db.Uuid
+  theme              String   @default("dark")
+  language           String   @default("en")
+  emailNotifications Boolean  @default(true) @map("email_notifications")
+  pushNotifications  Boolean  @default(true) @map("push_notifications")
+  workoutReminders   Boolean  @default(true) @map("workout_reminders")
+  marketingEmails    Boolean  @default(false) @map("marketing_emails")
+  profileVisibility  String   @default("private") @map("profile_visibility")
+  twoFactorEnabled   Boolean  @default(false) @map("two_factor_enabled")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}
+
+// ─── Workouts ────────────────────────────────────────────────────────────────
+
+model WorkoutCategory {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  icon        String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  exercises    Exercise[]
+  workoutPlans WorkoutPlan[]
+
+  @@index([slug])
+  @@map("workout_categories")
+}
+
+model Exercise {
+  id           String     @id @default(uuid()) @db.Uuid
+  categoryId   String     @map("category_id") @db.Uuid
+  name         String
+  slug         String     @unique
+  description  String?
+  difficulty   Difficulty @default(INTERMEDIATE)
+  muscles      Json
+  equipment    Json
+  videoUrl     String?    @map("video_url")
+  imageUrl     String?    @map("image_url")
+  instructions String?
+  isPublished  Boolean    @default(true) @map("is_published")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  category             WorkoutCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  workoutPlanExercises WorkoutPlanExercise[]
+
+  @@index([categoryId])
+  @@index([difficulty])
+  @@index([slug])
+  @@map("exercises")
+}
+
+model WorkoutPlan {
+  id          String     @id @default(uuid()) @db.Uuid
+  categoryId  String     @map("category_id") @db.Uuid
+  title       String
+  slug        String     @unique
+  description String?
+  duration    Int
+  difficulty  Difficulty @default(INTERMEDIATE)
+  calories    Int?
+  imageUrl    String?    @map("image_url")
+  isPublished Boolean    @default(true) @map("is_published")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+
+  category         WorkoutCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  exercises        WorkoutPlanExercise[]
+  workoutHistory   WorkoutHistory[]
+  favoriteWorkouts FavoriteWorkout[]
+
+  @@index([categoryId])
+  @@index([difficulty])
+  @@index([slug])
+  @@map("workout_plans")
+}
+
+model WorkoutPlanExercise {
+  id            String @id @default(uuid()) @db.Uuid
+  workoutPlanId String @map("workout_plan_id") @db.Uuid
+  exerciseId    String @map("exercise_id") @db.Uuid
+  order         Int    @default(0)
+  sets          Int?
+  reps          Int?
+  durationSec   Int?   @map("duration_sec")
+  restSec       Int?   @map("rest_sec")
+
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutPlanId, exerciseId])
+  @@index([workoutPlanId])
+  @@map("workout_plan_exercises")
+}
+
+model WorkoutHistory {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  workoutPlanId String   @map("workout_plan_id") @db.Uuid
+  completedAt   DateTime @default(now()) @map("completed_at")
+  duration      Int?
+  calories      Int?
+  notes         String?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
+  @@map("workout_history")
+}
+
+model FavoriteWorkout {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  workoutPlanId String   @map("workout_plan_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workoutPlanId])
+  @@map("favorite_workouts")
+}
+
+// ─── Membership & Payments ───────────────────────────────────────────────────
+
+model MembershipPlan {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @unique
+  slug         String    @unique
+  description  String?
+  price        Float
+  currency     String    @default("USD")
+  intervalDays Int       @default(30) @map("interval_days")
+  features     Json
+  isActive     Boolean   @default(true) @map("is_active")
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  userMemberships UserMembership[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@map("membership_plans")
+}
+
+model UserMembership {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  planId    String           @map("plan_id") @db.Uuid
+  status    MembershipStatus @default(PENDING)
+  startDate DateTime?        @map("start_date")
+  endDate   DateTime?        @map("end_date")
+  autoRenew Boolean          @default(true) @map("auto_renew")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     MembershipPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@index([userId, status])
+  @@index([planId])
+  @@map("user_memberships")
+}
+
+model Payment {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  membershipId String?       @map("membership_id") @db.Uuid
+  amount       Float
+  currency     String        @default("USD")
+  status       PaymentStatus @default(PENDING)
+  method       PaymentMethod @default(CARD)
+  externalId   String?       @map("external_id")
+  receiptUrl   String?       @map("receipt_url")
+  paidAt       DateTime?     @map("paid_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership UserMembership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([membershipId])
+  @@map("payments")
+}
+
+// ─── Nutrition ───────────────────────────────────────────────────────────────
+
+model MealPlan {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  calories    Int
+  protein     Float
+  carbs       Float
+  fat         Float
+  mealType    MealType  @map("meal_type")
+  imageUrl    String?   @map("image_url")
+  isPublished Boolean   @default(true) @map("is_published")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  @@index([mealType])
+  @@map("meal_plans")
+}
+
+// ─── Progress & Health ───────────────────────────────────────────────────────
+
+model ProgressTracking {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  recordedAt       DateTime @default(now()) @map("recorded_at")
+  weight           Float?
+  bodyFat          Float?   @map("body_fat")
+  waterIntakeMl    Int?     @map("water_intake_ml")
+  caloriesBurned   Int?     @map("calories_burned")
+  caloriesConsumed Int?     @map("calories_consumed")
+  steps            Int?
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+  @@map("progress_tracking")
+}
+
+model BMIHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  bmi        Float
+  weight     Float
+  height     Float
+  category   String?
+  recordedAt DateTime @default(now()) @map("recorded_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+  @@map("bmi_history")
+}
+
+// ─── Notifications & Contact ─────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  title     String
+  message   String
+  type      NotificationType @default(SYSTEM)
+  isRead    Boolean          @default(false) @map("is_read")
+  link      String?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  name      String
+  email     String
+  subject   String
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([isRead])
+  @@map("contact_messages")
+}

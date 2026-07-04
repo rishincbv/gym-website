@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Uploads
+uploads/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Prisma
+backend/prisma/migrations/**/migration_lock.toml
+
+# Database
+dev.db
+prisma/dev.db
+prisma/*.db
+prisma/*.db-journal
+

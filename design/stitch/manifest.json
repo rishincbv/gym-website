@@ -1,0 +1,45 @@
+{
+  "projectId": "8510852350685465056",
+  "projectName": "Elite Fitness Premium UI",
+  "screens": [
+    {
+      "id": "97e5c0729ebb43f0842f970b3a4c0902",
+      "name": "hero-shader",
+      "route": "/",
+      "description": "WebGL animated hero background",
+      "htmlPath": "design/stitch/raw/landing.html"
+    },
+    {
+      "id": "36864ab64f58474ba57088f4a252c13a",
+      "name": "landing",
+      "route": "/",
+      "description": "Full landing page — Elite Performance",
+      "htmlPath": "design/stitch/raw/login.html",
+      "imagePath": "design/stitch/raw/login.png"
+    },
+    {
+      "id": "05326edcbd724c549ed96facff4ad757",
+      "name": "dashboard",
+      "route": "/dashboard",
+      "description": "Member dashboard — Welcome, stats, workouts",
+      "htmlPath": "design/stitch/raw/register.html",
+      "imagePath": "design/stitch/raw/register.png"
+    },
+    {
+      "id": "f36a199ac3f444538ea8f9f47da2bab1",
+      "name": "progress",
+      "route": "/progress",
+      "description": "Progress & Analytics — charts, PRs, heatmap",
+      "htmlPath": "design/stitch/raw/dashboard.html",
+      "imagePath": "design/stitch/raw/dashboard.png"
+    },
+    {
+      "id": "84dca088a2414cdd8ca102c721b2dc85",
+      "name": "login",
+      "route": "/login",
+      "description": "Authentication — login form",
+      "htmlPath": "design/stitch/raw/screen-5.html",
+      "imagePath": "design/stitch/raw/screen-5.png"
+    }
+  ]
+}

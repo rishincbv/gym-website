@@ -1,0 +1,23 @@
+{
+  "name": "gymwebsite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-ready gym management website",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build": "npm run build --prefix frontend && npm run build --prefix backend",
+    "fetch:stitch": "node scripts/fetch-stitch-designs.mjs",
+    "db:check": "npm run db:check --prefix backend",
+    "db:push": "npm run db:push --prefix backend",
+    "db:seed": "npm run db:seed --prefix backend",
+    "db:setup": "npm run db:setup --prefix backend",
+    "db:disable-rls": "npm run db:disable-rls --prefix backend",
+    "admin:create": "npm run admin:create --prefix backend"
+  },
+  "devDependencies": {
+    "@google/stitch-sdk": "^0.3.5",
+    "concurrently": "^9.1.2"
+  }
+}
