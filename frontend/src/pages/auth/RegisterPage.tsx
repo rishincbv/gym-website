@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { authApi } from '@/api/auth'
 import { getApiErrorMessage } from '@/api/client'
 import { useAuthStore } from '@/store/auth-store'
+import { getLoginRedirectPath } from '@/lib/routing'
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -38,7 +39,7 @@ export function RegisterPage() {
     try {
       const session = await authApi.register(values)
       setSession(session.user, session.accessToken)
-      navigate('/dashboard')
+      navigate(getLoginRedirectPath(session.user.role), { replace: true })
     } catch (error) {
       setApiError(getApiErrorMessage(error))
     }

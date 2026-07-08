@@ -91,3 +91,19 @@ export async function meController(req: Request, res: Response): Promise<void> {
     data: { user },
   })
 }
+
+export async function forgotPasswordController(req: Request, res: Response): Promise<void> {
+  const message = await authService.forgotPassword(req.body.email, getRequestMeta(req))
+  res.json({
+    success: true,
+    message,
+  })
+}
+
+export async function resetPasswordController(req: Request, res: Response): Promise<void> {
+  await authService.resetPassword(req.body, getRequestMeta(req))
+  res.json({
+    success: true,
+    message: 'Password reset successful',
+  })
+}

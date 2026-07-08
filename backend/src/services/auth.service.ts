@@ -1,10 +1,11 @@
 import bcrypt from 'bcrypt'
 import { UserStatus, type Role } from '@prisma/client'
 import { AppError } from '../utils/app-error.js'
-import { generateRefreshToken, toPublicUser } from '../utils/auth.js'
+import { generateRefreshToken, generatePasswordResetToken, toPublicUser } from '../utils/auth.js'
 import { signAccessToken, getRefreshTokenExpiry } from '../utils/jwt.js'
 import { userRepository } from '../repositories/user.repository.js'
 import { refreshTokenRepository } from '../repositories/refresh-token.repository.js'
+import { passwordResetTokenRepository } from '../repositories/password-reset-token.repository.js'
 import { loginHistoryRepository } from '../repositories/login-history.repository.js'
 import { auditService } from './audit.service.js'
 import { parseDevice } from '../utils/request-meta.js'
@@ -103,6 +104,8 @@ export class AuthService {
       userAgent: meta?.userAgent,
     }, user.id, { rememberMe: Boolean(input.rememberMe) })
 
+    await userRepository.updateRememberMe(user.id, Boolean(input.rememberMe))
+
     return this.issueSession(user, Boolean(input.rememberMe))
   }
 
@@ -149,6 +152,53 @@ export class AuthService {
       throw new AppError(404, 'User not found')
     }
     return toPublicUser(user)
+  }
+
+  async forgotPassword(email: string, meta?: AuthRequestMeta): Promise<string> {
+    const normalizedEmail = email.toLowerCase()
+    const user = await userRepository.findByEmail(normalizedEmail)
+
+    if (!user) {
+      return 'If an account exists for this email, password reset instructions have been sent.'
+    }
+
+    await passwordResetTokenRepository.revokeAllForUser(user.id)
+
+    const token = generatePasswordResetToken()
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+
+    await passwordResetTokenRepository.create(user.id, token, expiresAt)
+
+    await auditService.log('user.password_reset_requested', 'user', {
+      userId: user.id,
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    }, user.id)
+
+    if (process.env.NODE_ENV === 'development') {
+      return `If an account exists for this email, password reset instructions have been sent. Dev reset token: ${token}`
+    }
+
+    return 'If an account exists for this email, password reset instructions have been sent.'
+  }
+
+  async resetPassword(input: { token: string; password: string }, meta?: AuthRequestMeta): Promise<void> {
+    const record = await passwordResetTokenRepository.findValid(input.token)
+    if (!record) {
+      throw new AppError(400, 'Invalid or expired reset token')
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS)
+
+    await userRepository.updatePassword(record.user.id, passwordHash)
+    await passwordResetTokenRepository.markUsed(input.token)
+    await refreshTokenRepository.revokeAllForUser(record.user.id)
+
+    await auditService.log('user.password_reset', 'user', {
+      userId: record.user.id,
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    }, record.user.id)
   }
 
   private async logFailedLogin(

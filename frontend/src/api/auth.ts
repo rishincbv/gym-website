@@ -1,7 +1,7 @@
 import { apiClient } from '@/api/client'
 import type { ApiResponse, AuthSession } from '@/types/api'
 import type { User } from '@/types/user'
-import type { LoginInput, RegisterInput } from '@/types/auth'
+import type { LoginInput, RegisterInput, ForgotPasswordInput, ResetPasswordInput } from '@/types/auth'
 
 export const authApi = {
   async login(payload: LoginInput): Promise<AuthSession> {
@@ -32,5 +32,17 @@ export const authApi = {
   async me(): Promise<User> {
     const { data } = await apiClient.get<ApiResponse<{ user: User }>>('/auth/me')
     return data.data.user
+  },
+
+  async forgotPassword(email: string): Promise<string> {
+    const { data } = await apiClient.post<ApiResponse<{ message: string }>>(
+      '/auth/forgot-password',
+      { email } satisfies ForgotPasswordInput,
+    )
+    return data.message
+  },
+
+  async resetPassword(payload: ResetPasswordInput): Promise<void> {
+    await apiClient.post('/auth/reset-password', payload)
   },
 }

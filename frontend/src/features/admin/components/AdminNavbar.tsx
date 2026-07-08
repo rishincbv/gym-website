@@ -2,7 +2,7 @@ import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { AdminBreadcrumb } from '@/features/admin/components/AdminBreadcrumb'
 import { AdminSearchBar } from '@/features/admin/components/AdminSearchBar'
 import { NotificationCenter } from '@/features/admin/components/NotificationCenter'
-import { ProfileMenu } from '@/features/admin/components/ProfileMenu'
+import { ProfileMenu } from '@/components/layout/ProfileMenu'
 import { ThemeSwitcher } from '@/features/admin/components/ThemeSwitcher'
 import { useThemeStore } from '@/store/theme-store'
 

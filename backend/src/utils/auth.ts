@@ -4,6 +4,10 @@ export function generateRefreshToken(): string {
   return randomBytes(48).toString('hex')
 }
 
+export function generatePasswordResetToken(): string {
+  return randomBytes(32).toString('hex')
+}
+
 import type { Role, UserStatus } from '@prisma/client'
 
 export function toPublicUser(user: {

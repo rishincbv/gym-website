@@ -10,3 +10,12 @@ export interface RegisterInput {
   firstName: string
   lastName: string
 }
+
+export interface ForgotPasswordInput {
+  email: string
+}
+
+export interface ResetPasswordInput {
+  token: string
+  password: string
+}

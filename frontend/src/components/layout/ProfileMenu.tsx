@@ -1,23 +1,19 @@
-import { Link, useNavigate } from 'react-router'
-import { authApi } from '@/api/auth'
-import { useAuthStore } from '@/store/auth-store'
+import { Link } from 'react-router'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
+import { useAuthStore } from '@/store/auth-store'
+import { isStaffRole } from '@/lib/roles'
+import { useLogout } from '@/hooks/useLogout'
 
-export function ProfileMenu() {
-  const navigate = useNavigate()
+interface ProfileMenuProps {
+  settingsPath?: string
+}
+
+export function ProfileMenu({ settingsPath = '/settings' }: ProfileMenuProps) {
   const user = useAuthStore((state) => state.user)
-  const logout = useAuthStore((state) => state.logout)
+  const handleLogout = useLogout()
 
-  const handleLogout = async (): Promise<void> => {
-    try {
-      await authApi.logout()
-    } finally {
-      logout()
-      navigate('/admin/login')
-    }
-  }
-
-  const initials = `${user?.firstName?.[0] ?? 'A'}${user?.lastName?.[0] ?? 'D'}`
+  const initials = `${user?.firstName?.[0] ?? 'U'}${user?.lastName?.[0] ?? 'S'}`
+  const showStaffLink = user && isStaffRole(user.role)
 
   return (
     <div className="group relative">
@@ -47,22 +43,24 @@ export function ProfileMenu() {
 
       <div className="invisible absolute top-full right-0 z-50 mt-3 w-56 translate-y-2 rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-2 opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
         <Link
-          to="/admin/settings"
+          to={settingsPath}
           className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
         >
           <MaterialIcon name="settings" />
           Settings
         </Link>
-        <Link
-          to="/dashboard"
-          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-        >
-          <MaterialIcon name="open_in_new" />
-          Member App
-        </Link>
+        {showStaffLink && (
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+          >
+            <MaterialIcon name="dashboard" />
+            Admin Dashboard
+          </Link>
+        )}
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => void handleLogout()}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-error transition-colors hover:bg-error/10"
         >
           <MaterialIcon name="logout" />

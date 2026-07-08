@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,6 +8,7 @@ import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { authApi } from '@/api/auth'
 import { getApiErrorMessage } from '@/api/client'
 import { useAuthStore } from '@/store/auth-store'
+import { getLoginRedirectPath } from '@/lib/routing'
 
 const HERO_IMAGE =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuCwOOpstwLTw9vDcNn69kYbFK2YKDbkjoDWaMd5n6xL7iLs8q_MCVRUtgHxeJEvej3N4q0rSSCnSx3omkZaa_o4KcJFn1yXlIRY_CPLJA3isyOiIcl1SX9NyyuhTm4DicGgi8JWTwyJkcEAJvp3VXe1dTAW3qOY18W3LipufFz_q4zXWrbDYdq-qHpMfttx5Z6MpzfjYXINOqSkODFRGj_FdSo0Q3ysha_-gyCMU_PahcPnMRU1R6FE'
@@ -22,9 +23,18 @@ type LoginFormValues = z.infer<typeof loginSchema>
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const setSession = useAuthStore((state) => state.setSession)
   const [showPassword, setShowPassword] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
+
+  const fromPath =
+    typeof location.state === 'object' &&
+    location.state !== null &&
+    'from' in location.state &&
+    typeof location.state.from === 'string'
+      ? location.state.from
+      : null
 
   const {
     register,
@@ -44,7 +54,7 @@ export function LoginPage() {
     try {
       const session = await authApi.login(values)
       setSession(session.user, session.accessToken)
-      navigate('/dashboard')
+      navigate(getLoginRedirectPath(session.user.role, fromPath), { replace: true })
     } catch (error) {
       setApiError(getApiErrorMessage(error))
     }
@@ -71,14 +81,8 @@ export function LoginPage() {
             Starts Here.
           </h1>
           <p className="text-body-lg border-l-4 border-primary py-2 pl-6 text-on-surface-variant italic">
-            &quot;The only limit to your impact is your imagination and commitment.&quot;
+            &quot;One account for every member, trainer, and administrator.&quot;
           </p>
-          <div className="mt-12 flex items-center gap-4">
-            <div className="h-1 w-12 bg-primary" />
-            <span className="text-label-bold font-semibold tracking-widest uppercase">
-              Performance Ecosystem
-            </span>
-          </div>
         </motion.div>
       </section>
 
@@ -96,7 +100,7 @@ export function LoginPage() {
                 Welcome Back
               </h2>
               <p className="text-body-md text-on-surface-variant">
-                Enter your credentials to access your performance dashboard.
+                Sign in with your account. You&apos;ll be redirected automatically based on your role.
               </p>
             </div>
 
@@ -180,7 +184,7 @@ export function LoginPage() {
                   htmlFor="remember"
                   className="text-body-md ml-3 cursor-pointer text-on-surface-variant"
                 >
-                  Remember this device
+                  Remember me
                 </label>
               </div>
 
@@ -197,24 +201,6 @@ export function LoginPage() {
               </button>
             </form>
 
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-outline-variant" />
-              </div>
-              <div className="relative flex justify-center text-label-sm">
-                <span className="bg-transparent px-4 font-semibold tracking-widest text-outline-variant uppercase backdrop-blur-sm">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-outline-variant bg-surface-container-high py-4 font-semibold text-on-surface transition-all duration-200 hover:bg-surface-container-highest"
-            >
-              Google Login
-            </button>
-
             <div className="mt-8 text-center">
               <p className="text-body-md text-on-surface-variant">
                 Don&apos;t have an account?{' '}
@@ -223,9 +209,9 @@ export function LoginPage() {
                 </Link>
               </p>
               <p className="mt-4 text-xs text-on-surface-variant">
-                Demo login: demo@gym.com / Password123!
+                Demo member: demo@gym.com / Password123!
                 <br />
-                Or create an account — password needs 8+ chars, 1 uppercase &amp; 1 number.
+                Demo admin: admin@gym.com / Password123!
               </p>
             </div>
           </div>

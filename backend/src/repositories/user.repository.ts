@@ -36,6 +36,20 @@ export class UserRepository {
       include: { profile: { select: { avatarUrl: true } } },
     })
   }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    })
+  }
+
+  async updateRememberMe(userId: string, rememberMe: boolean): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { rememberMe },
+    })
+  }
 }
 
 export const userRepository = new UserRepository()

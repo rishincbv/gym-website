@@ -1,9 +1,17 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
 import { PublicLayout } from '@/layouts/PublicLayout'
-import { DashboardLayout } from '@/layouts/DashboardLayout'
-import { ProtectedRoute } from '@/routes/ProtectedRoute'
-import { AdminProtectedRoute } from '@/routes/AdminProtectedRoute'
+import { AuthenticatedLayout } from '@/layouts/AuthenticatedLayout'
+import { UserLayout } from '@/layouts/UserLayout'
+import { AdminLayout } from '@/features/admin/layouts/AdminLayout'
+import {
+  PublicRoute,
+  GuestRoute,
+  ProtectedRoute,
+  RoleProtectedRoute,
+} from '@/routes/guards'
+import { LegacyAdminRedirect } from '@/routes/LegacyAdminRedirect'
+import { STAFF_ROLES, MEMBER_ROLES } from '@/lib/roles'
 import { PageLoader } from '@/components/ui/PageLoader'
 
 const LandingPage = lazy(() =>
@@ -15,37 +23,27 @@ const LoginPage = lazy(() =>
 const RegisterPage = lazy(() =>
   import('@/pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })),
 )
+const ForgotPasswordPage = lazy(() =>
+  import('@/pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
+)
+const ResetPasswordPage = lazy(() =>
+  import('@/pages/auth/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })),
+)
 const DashboardPage = lazy(() =>
-  import('@/pages/dashboard/DashboardPage').then((m) => ({
-    default: m.DashboardPage,
-  })),
+  import('@/pages/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 )
 const ProgressPage = lazy(() =>
-  import('@/pages/dashboard/ProgressPage').then((m) => ({
-    default: m.ProgressPage,
-  })),
+  import('@/pages/dashboard/ProgressPage').then((m) => ({ default: m.ProgressPage })),
+)
+const ComingSoonPage = lazy(() =>
+  import('@/pages/ComingSoonPage').then((m) => ({ default: m.ComingSoonPage })),
 )
 const NotFoundPage = lazy(() =>
   import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
-const AdminLoginPage = lazy(() =>
-  import('@/features/admin/pages/AdminLoginPage').then((m) => ({
-    default: m.AdminLoginPage,
-  })),
-)
-const AdminLayout = lazy(() =>
-  import('@/features/admin/layouts/AdminLayout').then((m) => ({
-    default: m.AdminLayout,
-  })),
-)
 const AdminDashboardPage = lazy(() =>
   import('@/features/admin/pages/AdminDashboardPage').then((m) => ({
     default: m.AdminDashboardPage,
-  })),
-)
-const AdminComingSoonPage = lazy(() =>
-  import('@/features/admin/pages/AdminComingSoonPage').then((m) => ({
-    default: m.AdminComingSoonPage,
   })),
 )
 
@@ -61,49 +59,90 @@ const adminModuleRoutes = [
   'trainers',
   'gallery',
   'testimonials',
-  'contact',
   'notifications',
   'reports',
   'settings',
   'roles',
 ] as const
 
+const userModuleRoutes = ['workouts', 'nutrition', 'membership', 'settings'] as const
+
 export const router = createBrowserRouter([
   {
-    element: <PublicLayout />,
-    children: [{ index: true, element: withSuspense(<LandingPage />) }],
-  },
-  { path: 'login', element: withSuspense(<LoginPage />) },
-  { path: 'register', element: withSuspense(<RegisterPage />) },
-  { path: 'admin/login', element: withSuspense(<AdminLoginPage />) },
-  {
-    element: <AdminProtectedRoute />,
+    element: <PublicRoute />,
     children: [
       {
-        path: 'admin',
-        element: withSuspense(<AdminLayout />),
+        element: <PublicLayout />,
         children: [
-          { index: true, element: withSuspense(<AdminDashboardPage />) },
-          ...adminModuleRoutes.map((path) => ({
-            path,
-            element: withSuspense(<AdminComingSoonPage />),
-          })),
+          { index: true, element: withSuspense(<LandingPage />) },
+          {
+            path: 'about',
+            element: withSuspense(<ComingSoonPage audience="user" />),
+          },
+          {
+            path: 'pricing',
+            element: withSuspense(<ComingSoonPage audience="user" />),
+          },
+          {
+            path: 'contact',
+            element: withSuspense(<ComingSoonPage audience="user" />),
+          },
         ],
       },
+    ],
+  },
+  {
+    element: <GuestRoute />,
+    children: [
+      { path: 'login', element: withSuspense(<LoginPage />) },
+      { path: 'register', element: withSuspense(<RegisterPage />) },
+      { path: 'forgot-password', element: withSuspense(<ForgotPasswordPage />) },
+      { path: 'reset-password', element: withSuspense(<ResetPasswordPage />) },
     ],
   },
   {
     element: <ProtectedRoute />,
     children: [
       {
-        element: <DashboardLayout />,
+        element: <AuthenticatedLayout />,
         children: [
-          { path: 'dashboard', element: withSuspense(<DashboardPage />) },
-          { path: 'progress', element: withSuspense(<ProgressPage />) },
+          {
+            element: <RoleProtectedRoute roles={STAFF_ROLES} />,
+            children: [
+              {
+                element: withSuspense(<AdminLayout />),
+                children: [
+                  { path: 'dashboard', element: withSuspense(<AdminDashboardPage />) },
+                  ...adminModuleRoutes.map((path) => ({
+                    path,
+                    element: withSuspense(<ComingSoonPage audience="admin" />),
+                  })),
+                ],
+              },
+            ],
+          },
+          {
+            element: <RoleProtectedRoute roles={MEMBER_ROLES} />,
+            children: [
+              {
+                element: <UserLayout />,
+                children: [
+                  { path: 'profile', element: withSuspense(<DashboardPage />) },
+                  { path: 'progress', element: withSuspense(<ProgressPage />) },
+                  ...userModuleRoutes.map((path) => ({
+                    path,
+                    element: withSuspense(<ComingSoonPage audience="user" />),
+                  })),
+                ],
+              },
+            ],
+          },
         ],
       },
     ],
   },
+  { path: 'admin', element: <LegacyAdminRedirect /> },
+  { path: 'admin/*', element: <LegacyAdminRedirect /> },
   { path: '404', element: withSuspense(<NotFoundPage />) },
   { path: '*', element: <Navigate to="/404" replace /> },
 ])

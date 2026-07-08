@@ -14,10 +14,10 @@ export function AdminBreadcrumb() {
   const segments = location.pathname.split('/').filter(Boolean)
 
   const labels = segments.map((segment, index) => {
-    if (segment === 'admin' && index === 0) return 'Dashboard'
+    const path = `/${segments.slice(0, index + 1).join('/')}`
     const navItem = adminNavSections
       .flatMap((section) => section.items)
-      .find((item) => item.to === `/${segments.slice(0, index + 1).join('/')}`)
+      .find((item) => item.to === path)
     return navItem?.label ?? titleCase(segment)
   })
 
