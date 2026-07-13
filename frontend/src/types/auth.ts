@@ -19,3 +19,7 @@ export interface ResetPasswordInput {
   token: string
   password: string
 }
+
+export interface GoogleLoginInput {
+  accessToken: string
+}

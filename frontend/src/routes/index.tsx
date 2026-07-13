@@ -20,6 +20,9 @@ const LandingPage = lazy(() =>
 const LoginPage = lazy(() =>
   import('@/pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })),
 )
+const AuthCallbackPage = lazy(() =>
+  import('@/pages/auth/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })),
+)
 const RegisterPage = lazy(() =>
   import('@/pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })),
 )
@@ -95,6 +98,7 @@ export const router = createBrowserRouter([
     element: <GuestRoute />,
     children: [
       { path: 'login', element: withSuspense(<LoginPage />) },
+      { path: 'auth/callback', element: withSuspense(<AuthCallbackPage />) },
       { path: 'register', element: withSuspense(<RegisterPage />) },
       { path: 'forgot-password', element: withSuspense(<ForgotPasswordPage />) },
       { path: 'reset-password', element: withSuspense(<ResetPasswordPage />) },

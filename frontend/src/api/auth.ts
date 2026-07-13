@@ -1,13 +1,21 @@
 import { apiClient } from '@/api/client'
 import type { ApiResponse, AuthSession } from '@/types/api'
 import type { User } from '@/types/user'
-import type { LoginInput, RegisterInput, ForgotPasswordInput, ResetPasswordInput } from '@/types/auth'
+import type { LoginInput, RegisterInput, ForgotPasswordInput, ResetPasswordInput, GoogleLoginInput } from '@/types/auth'
 
 export const authApi = {
   async login(payload: LoginInput): Promise<AuthSession> {
     const { data } = await apiClient.post<ApiResponse<AuthSession>>(
       '/auth/login',
       payload,
+    )
+    return data.data
+  },
+
+  async loginWithGoogle(accessToken: string): Promise<AuthSession> {
+    const { data } = await apiClient.post<ApiResponse<AuthSession>>(
+      '/auth/google',
+      { accessToken } satisfies GoogleLoginInput,
     )
     return data.data
   },

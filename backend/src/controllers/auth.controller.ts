@@ -54,6 +54,19 @@ export async function loginController(req: Request, res: Response): Promise<void
   })
 }
 
+export async function googleLoginController(req: Request, res: Response): Promise<void> {
+  const session = await authService.googleLogin(req.body.accessToken, getRequestMeta(req))
+  setRefreshCookie(res, session.refreshToken, session.rememberMe)
+  res.json({
+    success: true,
+    message: 'Google login successful',
+    data: {
+      user: session.user,
+      accessToken: session.accessToken,
+    },
+  })
+}
+
 export async function refreshController(req: Request, res: Response): Promise<void> {
   const refreshToken = req.cookies[REFRESH_COOKIE] as string | undefined
   if (!refreshToken) {

@@ -13,6 +13,13 @@ export class UserRepository {
     })
   }
 
+  async findByGoogleId(googleId: string): Promise<UserWithProfile | null> {
+    return prisma.user.findUnique({
+      where: { googleId },
+      include: { profile: { select: { avatarUrl: true } } },
+    })
+  }
+
   async findById(id: string): Promise<UserWithProfile | null> {
     return prisma.user.findUnique({
       where: { id },
@@ -26,14 +33,37 @@ export class UserRepository {
     firstName: string
     lastName: string
     role?: Role
+    googleId?: string
+    isVerified?: boolean
+    avatarUrl?: string | null
   }): Promise<UserWithProfile> {
     return prisma.user.create({
       data: {
-        ...data,
-        profile: { create: {} },
+        email: data.email,
+        passwordHash: data.passwordHash,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        googleId: data.googleId,
+        isVerified: data.isVerified,
+        profile: { create: { avatarUrl: data.avatarUrl ?? undefined } },
         settings: { create: {} },
       },
       include: { profile: { select: { avatarUrl: true } } },
+    })
+  }
+
+  async updateGoogleId(userId: string, googleId: string): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { googleId, isVerified: true },
+    })
+  }
+
+  async updateAvatar(userId: string, avatarUrl: string): Promise<void> {
+    await prisma.profile.update({
+      where: { userId },
+      data: { avatarUrl },
     })
   }
 

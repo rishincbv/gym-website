@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt'
+import { randomBytes } from 'node:crypto'
 import { UserStatus, type Role } from '@prisma/client'
 import { AppError } from '../utils/app-error.js'
 import { generateRefreshToken, generatePasswordResetToken, toPublicUser } from '../utils/auth.js'
@@ -9,6 +10,7 @@ import { passwordResetTokenRepository } from '../repositories/password-reset-tok
 import { loginHistoryRepository } from '../repositories/login-history.repository.js'
 import { auditService } from './audit.service.js'
 import { parseDevice } from '../utils/request-meta.js'
+import { getSupabaseAdmin } from '../lib/supabase.js'
 
 const BCRYPT_ROUNDS = 12
 
@@ -109,6 +111,106 @@ export class AuthService {
     return this.issueSession(user, Boolean(input.rememberMe))
   }
 
+  async googleLogin(accessToken: string, meta?: AuthRequestMeta) {
+    const supabase = getSupabaseAdmin()
+    if (!supabase) {
+      throw new AppError(503, 'Google login is not configured on the server')
+    }
+
+    const { data, error } = await supabase.auth.getUser(accessToken)
+    if (error || !data.user?.email) {
+      throw new AppError(401, 'Invalid or expired Google sign-in')
+    }
+
+    const supabaseUser = data.user
+    const rawEmail = supabaseUser.email
+    if (!rawEmail) {
+      throw new AppError(401, 'Invalid or expired Google sign-in')
+    }
+
+    const email = rawEmail.toLowerCase()
+    const googleId = supabaseUser.id
+    const metadata = supabaseUser.user_metadata as Record<string, unknown>
+    const { firstName, lastName, avatarUrl } = this.parseGoogleProfile(email, metadata)
+
+    let user =
+      (await userRepository.findByGoogleId(googleId)) ??
+      (await userRepository.findByEmail(email))
+
+    if (user) {
+      if (user.status === UserStatus.SUSPENDED) {
+        await this.logFailedLogin(user.id, email, meta, 'account_suspended')
+        throw new AppError(403, 'Your account has been suspended')
+      }
+
+      if (user.status === UserStatus.BANNED) {
+        await this.logFailedLogin(user.id, email, meta, 'account_banned')
+        throw new AppError(403, 'Your account has been banned')
+      }
+
+      if (user.status === UserStatus.INACTIVE) {
+        await this.logFailedLogin(user.id, email, meta, 'account_inactive')
+        throw new AppError(403, 'Your account is inactive')
+      }
+
+      if (!user.googleId) {
+        await userRepository.updateGoogleId(user.id, googleId)
+        user = (await userRepository.findById(user.id)) ?? user
+      }
+
+      if (avatarUrl && !user.profile?.avatarUrl) {
+        await userRepository.updateAvatar(user.id, avatarUrl)
+        user = (await userRepository.findById(user.id)) ?? user
+      }
+    } else {
+      const passwordHash = await bcrypt.hash(randomBytes(32).toString('hex'), BCRYPT_ROUNDS)
+      user = await userRepository.create({
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        googleId,
+        isVerified: true,
+        avatarUrl,
+      })
+
+      await auditService.log(
+        'user.registered',
+        'user',
+        {
+          userId: user.id,
+          ipAddress: meta?.ipAddress,
+          userAgent: meta?.userAgent,
+        },
+        user.id,
+        { provider: 'google' },
+      )
+    }
+
+    await loginHistoryRepository.create({
+      userId: user.id,
+      email,
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+      device: parseDevice(meta?.userAgent),
+      success: true,
+    })
+
+    await auditService.log(
+      'user.login',
+      'user',
+      {
+        userId: user.id,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+      },
+      user.id,
+      { provider: 'google' },
+    )
+
+    return this.issueSession(user, false)
+  }
+
   async refresh(refreshToken: string, meta?: AuthRequestMeta) {
     const record = await refreshTokenRepository.findValid(refreshToken)
     if (!record) {
@@ -199,6 +301,32 @@ export class AuthService {
       ipAddress: meta?.ipAddress,
       userAgent: meta?.userAgent,
     }, record.user.id)
+  }
+
+  private parseGoogleProfile(email: string, metadata: Record<string, unknown>) {
+    const fullName =
+      typeof metadata.full_name === 'string'
+        ? metadata.full_name
+        : typeof metadata.name === 'string'
+          ? metadata.name
+          : ''
+    const nameParts = fullName.trim().split(/\s+/).filter(Boolean)
+    const firstName =
+      typeof metadata.given_name === 'string'
+        ? metadata.given_name
+        : nameParts[0] || email.split('@')[0] || 'Member'
+    const lastName =
+      typeof metadata.family_name === 'string'
+        ? metadata.family_name
+        : nameParts.slice(1).join(' ') || 'Member'
+    const avatarUrl =
+      typeof metadata.avatar_url === 'string'
+        ? metadata.avatar_url
+        : typeof metadata.picture === 'string'
+          ? metadata.picture
+          : null
+
+    return { firstName, lastName, avatarUrl }
   }
 
   private async logFailedLogin(
