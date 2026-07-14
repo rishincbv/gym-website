@@ -55,7 +55,7 @@ export async function loginController(req: Request, res: Response): Promise<void
 }
 
 export async function googleLoginController(req: Request, res: Response): Promise<void> {
-  const session = await authService.googleLogin(req.body.accessToken, getRequestMeta(req))
+  const session = await authService.googleLogin(req.body.idToken, getRequestMeta(req))
   setRefreshCookie(res, session.refreshToken, session.rememberMe)
   res.json({
     success: true,

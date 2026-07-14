@@ -21,5 +21,5 @@ export interface ResetPasswordInput {
 }
 
 export interface GoogleLoginInput {
-  accessToken: string
+  idToken: string
 }

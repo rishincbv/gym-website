@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js'
-import type { User, Role } from '@prisma/client'
+import type { AuthProvider, User, Role } from '@prisma/client'
 
 export type UserWithProfile = User & {
   profile: { avatarUrl: string | null } | null
@@ -34,6 +34,7 @@ export class UserRepository {
     lastName: string
     role?: Role
     googleId?: string
+    provider?: AuthProvider
     isVerified?: boolean
     avatarUrl?: string | null
   }): Promise<UserWithProfile> {
@@ -45,6 +46,7 @@ export class UserRepository {
         lastName: data.lastName,
         role: data.role,
         googleId: data.googleId,
+        provider: data.provider,
         isVerified: data.isVerified,
         profile: { create: { avatarUrl: data.avatarUrl ?? undefined } },
         settings: { create: {} },
@@ -53,10 +55,25 @@ export class UserRepository {
     })
   }
 
+  async linkGoogleAccount(
+    userId: string,
+    googleId: string,
+    provider: AuthProvider,
+  ): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        googleId,
+        provider,
+        isVerified: true,
+      },
+    })
+  }
+
   async updateGoogleId(userId: string, googleId: string): Promise<void> {
     await prisma.user.update({
       where: { id: userId },
-      data: { googleId, isVerified: true },
+      data: { googleId, isVerified: true, provider: 'EMAIL_GOOGLE' },
     })
   }
 

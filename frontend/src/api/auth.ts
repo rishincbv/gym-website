@@ -12,10 +12,10 @@ export const authApi = {
     return data.data
   },
 
-  async loginWithGoogle(accessToken: string): Promise<AuthSession> {
+  async loginWithGoogle(idToken: string): Promise<AuthSession> {
     const { data } = await apiClient.post<ApiResponse<AuthSession>>(
       '/auth/google',
-      { accessToken } satisfies GoogleLoginInput,
+      { idToken } satisfies GoogleLoginInput,
     )
     return data.data
   },

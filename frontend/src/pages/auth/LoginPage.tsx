@@ -9,7 +9,7 @@ import { authApi } from '@/api/auth'
 import { getApiErrorMessage } from '@/api/client'
 import { useAuthStore } from '@/store/auth-store'
 import { getLoginRedirectPath } from '@/lib/routing'
-import { signInWithGoogle } from '@/lib/auth/google'
+import { requestGoogleIdToken } from '@/lib/auth/google'
 
 const HERO_IMAGE =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuCwOOpstwLTw9vDcNn69kYbFK2YKDbkjoDWaMd5n6xL7iLs8q_MCVRUtgHxeJEvej3N4q0rSSCnSx3omkZaa_o4KcJFn1yXlIRY_CPLJA3isyOiIcl1SX9NyyuhTm4DicGgi8JWTwyJkcEAJvp3VXe1dTAW3qOY18W3LipufFz_q4zXWrbDYdq-qHpMfttx5Z6MpzfjYXINOqSkODFRGj_FdSo0Q3ysha_-gyCMU_PahcPnMRU1R6FE'
@@ -21,6 +21,17 @@ const loginSchema = z.object({
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
+
+function getGoogleErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    const message = error.message
+    if (/popup|closed|cancelled|canceled|blocked/i.test(message)) {
+      return message
+    }
+    return message
+  }
+  return getApiErrorMessage(error)
+}
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -63,12 +74,18 @@ export function LoginPage() {
   }
 
   const handleGoogleLogin = async (): Promise<void> => {
+    if (googleLoading || isSubmitting) return
+
     setApiError(null)
     setGoogleLoading(true)
     try {
-      await signInWithGoogle()
+      const idToken = await requestGoogleIdToken()
+      const session = await authApi.loginWithGoogle(idToken)
+      setSession(session.user, session.accessToken)
+      navigate(getLoginRedirectPath(session.user.role, fromPath), { replace: true })
     } catch (error) {
-      setApiError(getApiErrorMessage(error))
+      setApiError(getGoogleErrorMessage(error))
+    } finally {
       setGoogleLoading(false)
     }
   }
